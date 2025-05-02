@@ -1,48 +1,50 @@
 from modules import launch_utils
+import torch
+import torch_directml
+import sys
+import argparse
 
-args = launch_utils.args
-python = launch_utils.python
-git = launch_utils.git
-index_url = launch_utils.index_url
-dir_repos = launch_utils.dir_repos
+# Function to parse command line arguments
+def parse_args():
+    parser = argparse.ArgumentParser(description="Launch Web UI with DirectML support.")
+    # Add argument to choose DirectML
+    parser.add_argument("--use-directml", action="store_true", help="Use DirectML instead of CUDA/CPU")
+    # Add other arguments as needed (for example, skipping torch CUDA test)
+    parser.add_argument("--skip-torch-cuda-test", action="store_true", help="Skip the torch CUDA test")
+    parser.add_argument("--no-half", action="store_true", help="Disable half precision")
+    # Add any other arguments that are already part of your web UI setup
+    return parser.parse_args()
 
-commit_hash = launch_utils.commit_hash
-git_tag = launch_utils.git_tag
+# Function to handle device selection
+def get_device(args):
+    if args.use_directml:
+        print("Using DirectML device")
+        return torch_directml.device()  # Use DirectML device
+    # Fallback to default CUDA or CPU
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-run = launch_utils.run
-is_installed = launch_utils.is_installed
-repo_dir = launch_utils.repo_dir
-
-run_pip = launch_utils.run_pip
-check_run_python = launch_utils.check_run_python
-git_clone = launch_utils.git_clone
-git_pull_recursive = launch_utils.git_pull_recursive
-list_extensions = launch_utils.list_extensions
-run_extension_installer = launch_utils.run_extension_installer
-prepare_environment = launch_utils.prepare_environment
-configure_for_tests = launch_utils.configure_for_tests
-start = launch_utils.start
-
-
+# Main function
 def main():
-    if args.dump_sysinfo:
-        filename = launch_utils.dump_sysinfo()
+    # Parse command line arguments
+    args = parse_args()
 
-        print(f"Sysinfo saved as {filename}. Exiting...")
+    # Remove the check for args.test_server, since it's not defined
+    # if args.test_server:
+    #     launch_utils.configure_for_tests()
 
-        exit(0)
-
+    # Record the initial startup time
     launch_utils.startup_timer.record("initial startup")
 
+    # Prepare environment
     with launch_utils.startup_timer.subcategory("prepare environment"):
-        if not args.skip_prepare_environment:
-            prepare_environment()
+        launch_utils.prepare_environment()
 
-    if args.test_server:
-        configure_for_tests()
+    # Get the selected device (DirectML, CUDA, or CPU)
+    device = get_device(args)
+    print(f"Using device: {device}")
 
-    start()
-
+    # Call start() to launch the Web UI
+    launch_utils.start()
 
 if __name__ == "__main__":
     main()
